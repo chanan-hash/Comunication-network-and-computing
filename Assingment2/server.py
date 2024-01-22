@@ -87,20 +87,14 @@ def server(host: str, port: int) -> None:
         # SO_REUSEADDR is a socket option that allows the socket to be bound to an address that is already in use.
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-
-
-
-
         # Prepare the server socket
+        # Binding the server socket with the IP address, we're getting it as a String of IP and port number.
         # * Fill in start (1)
-        ########## TODO --- ADD comments --- #########
+        # host --> String of IP adr, port --> int of port numbers, the bind() method need to get them as one variable.
+        # Exmp': server_socket.bind(("0.0.0.0",8820))
         server_socket.bind((host,port))
-        server_socket.listen()
+        server_socket.listen() # Now we can listen and wait for clients to connect
         # * Fill in end (1)
-
-
-
-
 
         threads = []
         print(f"Listening on {host}:{port}")
@@ -108,10 +102,9 @@ def server(host: str, port: int) -> None:
         while True:
             try:
                 # Establish connection with client.
-
-
-                ########## TODO --- ADD comments --- #########
-                client_socket, address = server_socket.accept() # * Fill in start (2) # * Fill in end (2)
+                # Accepting the client's socket, and IP address
+                # This is because also the client have a connection request to the server
+                client_socket, address = server_socket.accept()# * Fill in start (2) # * Fill in end (2)
 
                 # Create a new thread to handle the client request
                 thread = threading.Thread(target=client_handler, args=(
@@ -135,10 +128,8 @@ def client_handler(client_socket: socket.socket, client_address: tuple[str, int]
     with client_socket:  # closes the socket when the block is exited
         print(f"Conection established with {client_addr}")
         while True:
-
-            ########## TODO --- ADD comments --- #########
+            # Receiving the data from the client. Max size of bytes is 8192 as we've told
             data = client_socket.recv(8192)# * Fill in start (3) # * Fill in end (3)
-
             if not data:
                 break
             try:
@@ -157,11 +148,11 @@ def client_handler(client_socket: socket.socket, client_address: tuple[str, int]
                 print(
                     f"{client_prefix} Sending response of length {len(response)} bytes")
 
-                ########## TODO --- ADD comments --- #########
                 # * Fill in start (4)
-                client_socket.sendall(response)
-                client_socket.close()
-                break
+                # sendall() method, is using send() method, till the whole message is sent
+                client_socket.sendall(response) # Sending back to the server the client's response
+                client_socket.close() # Closing the connection
+                break # Breaking the loop after the connection is closed, so we won't have an infinite loop
                 # * Fill in end (4)
 
             except Exception as e:

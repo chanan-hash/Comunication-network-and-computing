@@ -83,28 +83,26 @@ def proxy(proxy_address: tuple[str, int], server_adress: tuple[str, int]) -> Non
         # SO_REUSEADDR is a socket option that allows the socket to be bound to an address that is already in use.
         proxy_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-
-
-        ########## TODO --- ADD comments --- #########
         # Prepare the proxy socket
+        # Opening the socket by socket library, using TCP protocol in line 81 SOCK_STREAM is for TCP protocol
         # * Fill in start (1)
+        # binding the proxy socket with the IP address, we're getting it as a String of IP and port number.
+        # for exmp' ("8.8.8.8", 8820)
         proxy_socket.bind(proxy_address)
-        proxy_socket.listen()
+        proxy_socket.listen() # listening for client's one each time
         # * Fill in end (1)
-
-
-
 
         threads = []
         print(f"Listening on {proxy_address[0]}:{proxy_address[1]}")
 
         while True:
             try:
-
-
-
                 # Establish connection with client.
-                ########## TODO --- ADD comments --- #########
+                # Here we're getting the info on the client: 1) The socket, and the IP address
+                # Approving the connection, the method waiting to a request from a client, doing ot by 'accept()' method
+                # accept() --> returns a tuple, with 2 objects:
+                # 1. all the data that we need to communicate with the client.
+                # 2. IP and PORT that addressed to the server
                 client_socket, client_address = proxy_socket.accept()# * Fill in start (2) # * Fill in end (2)
 
                 # Create a new thread to handle the client request
@@ -128,10 +126,9 @@ def client_handler(client_socket: socket.socket, client_address: tuple[str, int]
     with client_socket:  # closes the socket when the block is exited
         print(f"{client_prefix} Connected established")
         while True:
-
-
             # Receive data from the client
-            ########## TODO --- ADD comments --- #########
+            # Getting the data from the client
+            # As we've told we need 8192 bytes for the data, because this is the biggest packet we can receive here
             data = client_socket.recv(8192)# * Fill in start (3) # * Fill in end (3)
             
             if not data:
@@ -165,12 +162,13 @@ def client_handler(client_socket: socket.socket, client_address: tuple[str, int]
                 print(
                     f"{client_prefix} Sending response of length {len(response)} bytes")
 
-                ########## TODO --- ADD comments --- #########
                 # Send the response back to the client
                 # * Fill in start (4)
-                client_socket.sendall(request)
-                client_socket.close()
+                client_socket.sendall(response) # Sending back the response by method 'sendall()'
+                client_socket.close() # closing the socket with the client after we've finished
                 break
+                # closing the communication with the client on the client's object,
+                # Breaking the loop after the connection is closed, so we won't have an infinite loop
                 # * Fill in end (4)
                 
             except Exception as e:
