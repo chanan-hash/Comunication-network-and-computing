@@ -117,7 +117,7 @@ int rudp_connect(int socket, const char *ip, int port)
             }
 
             if (recv->flags.SYN && recv->flags.ACK) // if they are both 1, means true, we have a connection
-            {
+            {                                       // The connection stays in the socket now
                 printf("Are connected\n");
                 free(rudp);
                 free(recv);
@@ -138,6 +138,79 @@ int rudp_connect(int socket, const char *ip, int port)
 }
 
 /*************************************************/
+
+// Here will try to bind the connection
+int rudp_get_con(int socket, int port)
+{
+    // Setup the server and handshake as before
+    struct sockaddr_in serveradd;
+    memset(&serveradd, 0, sizeof(serveradd));
+
+    // Putting the IP address an port to the socket
+    serveradd.sin_family = AF_INET; // Ipv4
+    serveradd.sin_port = htons(port);
+    serveradd.sin_addr.s_addr = htonl(INADDR_ANY); // biding the socket to any available network
+
+    int bind_res = bind(socket, (struct sockaddr *)&serveradd, sizeof(serveradd));
+
+    if (bind_res == -1) // means the bind failed
+    {
+        perror("failed binding");
+        close(socket); // closing the socket
+        return -1;     // for error
+    }
+
+    // receiving SYN
+    struct sockaddr_in clientadd;
+    socklen_t clientaddLen = sizeof(clientadd);
+    memset((char *)&clientadd, 0, sizeof(clientadd));
+
+    RUDP *rudp = malloc(sizeof(RUDP));
+    memset(&rudp, 0, sizeof(RUDP));
+
+    int recv_length_bytes = recvfrom(socket, rudp, sizeof(RUDP) - 1, 0, (struct sockaddr *)&clientadd, &clientaddLen);
+
+    if (recv_length_bytes == -1) // recvfrom failed
+    {
+        perror("failed recvfrom");
+        free(rudp);
+        return -1; // Error sign
+    }
+
+    if (connect(socket, (struct sockaddr *)&clientadd, &clientaddLen) == -1) // connection failed
+    {
+        perror("connect function failed");
+        free(rudp); // free after allocated memory
+        return -1;
+    }
+
+    if (rudp->flags.SYN == 1)
+    {
+        RUDP *reply = malloc(sizeof(RUDP));
+        memset(rudp, 0, sizeof(RUDP));
+        // Setting the flags to 1
+        reply->flags.SYN = 1;
+        reply->flags.ACK = 1;
+
+        int send_res = sendto(socket, reply, sizeof(RUDP), 0, NULL, 0);
+
+        if (send_res == -1) // means sending failed
+        { 
+            perror("sendto func' failed");
+            free(rudp);
+            free(reply);
+            return -1;
+        }
+
+        set_time(socket, 1 * 10);
+        free(rudp);
+        free(reply);
+        return 1; // Succeeded to get the conncetion of the client 
+    }
+    return 0; // for unsuccessing
+}
+
+/**************************************/
 
 // To send data we need the socket, a data to sent, length of the data, and struct of the address
 int rudp_send(int socket, const void *data, size_t length, struct sockaddr_in *addr)
