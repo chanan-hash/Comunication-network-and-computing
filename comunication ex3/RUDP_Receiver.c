@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
         return 1; // error
     }
 
-    printf("Sender connected and data is received to a file");
+    printf("Sender connected and data is received to a file\n");
 
     fprintf(data_file, "\n\n --------------- Stats -------------\n");
     double avgTime = 0;
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 
     do
     {
-        val = rudp_receive(socket, &recv_data, &data_len);
+        val = rudp_receive(socket, &recv_data, &data_len); // receive value
 
         if (val == -2) // means sender closed the connection
         {
@@ -95,7 +95,12 @@ int main(int argc, char *argv[])
             start = clock(); // getting the time again
         }
 
-        else // (val == 1)
+        else if (val == 1)
+        {
+            strcat(total_size, recv_data); /* Append SRC onto DEST.  */
+        }
+
+        else // (val == 2)
         {
             strcat(total_size, recv_data);
             printf("received total: %zu\n", sizeof(total_size));

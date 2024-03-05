@@ -50,8 +50,7 @@ int main(int argc, char *argv[])
             return 1;
         }
         printf("Do you want to send it again? (y/n): \n");
-        scanf("%c", &choise);
-        printf("%d\n",choise == 'y');
+        scanf(" %c", &choise);
     } while (choise == 'y');
 
     printf("Closing the connection...\n");
