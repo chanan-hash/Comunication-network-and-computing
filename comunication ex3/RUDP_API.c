@@ -10,6 +10,12 @@
 #include <sys/types.h>
 #include "RUDP_API.h"
 
+/**
+ * The rudp representing a packet, so we have rudp->falgs.DATA to know if it a data packet,
+ * and we have filed for it's length to know how much to allocate for it
+ * in rudp_receice function we can see the allocation for the data and the condition to check if we're getting the data
+ */
+
 // define more functions
 int checksum(RUDP *rudp); // to check if the whole packet came
 int wait_for_acknowledgement(int socket, int sequal_num, clock_t s, clock_t t);
@@ -277,18 +283,110 @@ int rudp_send(int socket, const char *data, int length)
 
 /**************************************************/
 
-int rudp_receive(int socket, void *buffer, size_t buffer_size, struct sockaddr_in *recv_addr)
+int rudp_receive(int socket, char **buffer, int *length)
 {
-    socklen_t recv_server_len = sizeof(struct sockaddr_in);
-    int bytes_recived = recvfrom(socket, buffer, buffer_size, 0, (struct sockaddr *)recv_addr, &recv_server_len);
+    // initializing the rudp protocol packet income
+    RUDP *rudp = malloc(sizeof(RUDP));
+    memset(rudp, 0, sizeof(RUDP));
 
-    if (bytes_recived <= 0)
-    {
-        perror("recfrom(2)");
+    int recv_len = recvfrom(socket, rudp, sizeof(RUDP) - 1, 0, NULL, 0);
+    if (recv_len == -1)
+    { // failed to feceive
+        perror("failed recvfrom");
+        free(rudp);
+        return -1; // for error
+    }
+
+    if (checksum(rudp) != rudp->checksum)
+    { // means we didn't get the whole info
+        free(rudp);
         return -1;
     }
-    return bytes_recived;
+
+    if (send_acknowledgement(socket, rudp) == -1)
+    {
+        free(rudp);
+        return -1;
+    }
+
+    if (rudp->flags.SYN == 1)
+    { // we have a request for connection
+        printf("have a request for connection\n");
+        free(rudp);
+        return 0; // we've have a connection
+    }
+
+    if (rudp->sequalNum == seq_num)
+    {
+        if (rudp->sequalNum == 0 && rudp->flags.DATA == 1)
+        {
+            set_time(socket, 1 * 10);
+        }
+        if (rudp->flags.FIN == 1 && rudp->flags.DATA == 1)
+        { // means we handling the last packet now
+            *buffer = malloc(rudp->dataLength);
+            memcpy(*buffer, rudp->data, rudp->dataLength);
+            *length = rudp->dataLength;
+            free(rudp);  // finished copying the last packet
+            seq_num = 0; // restenig the sequal number for the next connection
+            set_time(socket, 10000000);
+            return 2;
+        }
+
+        if (rudp->flags.DATA == 1)
+        { // this is a data packet, so we want to take it's info
+            *buffer = malloc(rudp->dataLength);
+            memcpy = (*buffer, rudp->data, rudp->dataLength);
+            *length = rudp->dataLength; // the length of the data
+            free(rudp);
+            seq_num++     // for the next packet tag
+            return 1;    // for success
+        }
+    }
+
+    else if (rudp->flags.DATA == 1)
+    {
+        free(rudp);
+        return 0; // for unsuccess
+    }
+
+    if (rudp->flags.FIN == 1)
+    { // finished sending and closing the connection
+        free(rudp);
+
+        // sending an ack and waiting to check if the sender is closed
+        printf("received close connection\n");
+        set_time(socket, 1 * 10);
+
+        // means it's still open
+        rudp = malloc(sizeof(RUDP));
+        time_t finish_time = time(NULL);
+        printf("Waiting for closure");
+
+        while ((double)(time(NULL) - finish_time) < 1)
+        {
+            memset(rudp, 0, sizeof(RUDP));
+            recvfrom(socket, rudp, sizeof(RUDP) - 1, 0, NULL, 0);
+            if (rudp->flags.FIN == 1)
+            {
+                if (send_acknowledgement(socketm rudp) == -1)
+                { // failed sneding ack
+                    free(rudp);
+                    return -1; // for error
+                }
+                finish_time = time(NULL);
+            }
+        }
+
+        free(rudp);
+        close(socket);
+        return -2;
+    }
+    free(rudp);
+    return 0;
 }
+
+/**************************************/
 
 int rudp_close(int socket)
 {
@@ -389,5 +487,5 @@ int send_acknowledgement(int socket, RUDP *rudp)
     }
 
     free(rudp_ack); // succeeded sendinf the acknowledgement and can free the memory and return 1 for success
-    return 1; // for success
+    return 1;       // for success
 }
