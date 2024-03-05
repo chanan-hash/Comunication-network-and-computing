@@ -5,47 +5,124 @@
 #include <sys/socket.h> // For the socket function
 #include <unistd.h>     // For the close function
 #include <sys/time.h>   // For tv struct
+#include <time.h>
 #include "RUDP_API.h"
 
 #define PORT 5061 // may be changed, temporary port for now
 #define SERVER_IP "127.0.0.1"
-#define BUFFER_SIZE 1024 // need to be changed to 2mb
+#define DATA_SIZE 2097152 // 2mb
 
 /***Will act as an client***/
 
+int parse_info(int argc, *argv[], char **ip, int *port);
+int parse_port(char *port);
+int connection(char *ip, int port);
+char *util_generate_random_data(unsigned int size); // their function for generating data
+
 int main(int argc, char *argv[])
 {
-    if (argc != 2)
+    char *ip;
+    int port;
+
+    if (!parse_info(argc, argv, &ip, &port))
     {
-        // print something
-        return 1;
+        return 1; // in main 1 means jumping out from the program, didn't succeed
     }
 
-    char *reciver_ip = argv[0];
-    int port = atoi(argv[1]); // argument to integer
+    char *random_data = util_generate_random_data(DATA_SIZE); // generating 2mb data
 
-    int sender_socket = rudp_socket_create();
+    int socket = connection(ip, port);
 
-    struct sockaddr_in reciver_address; // geeting the reciver address
-
-    memset(&reciver_address, 0, sizeof(reciver_address));
-    // reciver_address.sin_addr.s_addr = INADDR_ANY;
-    reciver_address.sin_family = AF_INET;
-    reciver_address.sin_port = htons(PORT); // Converts to Big or Little Endian
-
-    if (inet_pton(AF_INET, SERVER_IP, &(reciver_address.sin_addr.s_addr)) <= 0)
+    if (socket == -1)
     {
-        perror("inet_pton(3)");
-        rudp_close(sender_socket);
-        return 1;
+        return 1; // faild to create the socket
     }
 
-    char buffer[BUFFER_SIZE] = {0};
+    char choise;
 
-    size_t bytes_read;
+    do
+    {
+        printf("sending the file...\n");
+        if (rudp_send(socket, random_data, DATA_SIZE) < 0)
+        {
+            printf("Error sending the data...\n");
+            rudp_close(socket); // closing the connection
+            return 1;
+        }
+        printf("Do you want to send it again? (y/n): ");
+        scanf("%c", &choise);
+    } while (choise == 'y');
 
-    // rudp_send(sender_socket, buffer, bytes_read,);
+    printf("Closing the connection...\n");
+    rudp_close(socket);
 
-    rudp_close(sender_socket);
+    printf("Connection closed\n");
+    free(random_data);
+
     return 0;
+}
+
+int connection(char *ip, int port)
+{
+    int socket = rudp_socket(); // creating the socket
+    if (socket == -1)
+    {
+        return -1; // returning error
+    }
+    if (rudp_connect(socket, ip, port) <= 0)
+    {
+        return -1;
+    }
+    return socket;
+}
+
+int parse_port(char *port)
+{
+
+    char *endpoint;
+    long int portNumer = strtol(port, &endpoint, 10); /* Convert a string to a long integer.  */
+
+    if (*endpoint != '\0' || portNumer < 0 || portNumer > 65535)
+    { // if the end of the string is not '\0',
+      // or the port number is to big or negative,
+      // means it's not between the range of port numbers
+        return -1;
+    }
+    return (int)portNumer;
+}
+
+// checkong the command input correctness
+int parse_info(int argc, *argv[], char **ip, int *port)
+{
+    if (argc != 5 || strcmp(argv[1], "-ip") != 0 && strcmp(argv[3], "-p") != 0)
+    {
+        printf("Invalid command input\n");
+        return 0; // for failed
+    }
+
+    *ip = argv[2];
+    *port = parse_port(argv[4]);
+    if (*port == 1 -)
+    {
+        printf("Invalid port\n");
+        return 0; // for failed
+    }
+    return 1; // success parsing the commant to ip address and port number
+}
+
+char *util_generate_random_data(unsigned int size)
+{
+    char *buffer = NULL;
+    // Argument check.
+    if (size == 0)
+        return NULL;
+    buffer = (char *)calloc(size, sizeof(char));
+    // Error checking.
+    if (buffer == NULL)
+        return NULL;
+    // Randomize the seed of the random number generator.
+    srand(time(NULL));
+    for (unsigned int i = 0; i < size; i++)
+        *(buffer + i) = ((unsigned int)rand() % 255) + 1;
+    return buffer;
 }
