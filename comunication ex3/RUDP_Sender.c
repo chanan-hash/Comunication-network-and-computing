@@ -14,7 +14,7 @@
 
 /***Will act as an client***/
 
-int parse_info(int argc, *argv[], char **ip, int *port);
+int parse_info(int argc, char *argv[], char **ip, int *port);
 int parse_port(char *port);
 int connection(char *ip, int port);
 char *util_generate_random_data(unsigned int size); // their function for generating data
@@ -92,7 +92,7 @@ int parse_port(char *port)
 }
 
 // checkong the command input correctness
-int parse_info(int argc, *argv[], char **ip, int *port)
+int parse_info(int argc, char *argv[], char **ip, int *port)
 {
     if (argc != 5 || strcmp(argv[1], "-ip") != 0 && strcmp(argv[3], "-p") != 0)
     {
@@ -102,7 +102,7 @@ int parse_info(int argc, *argv[], char **ip, int *port)
 
     *ip = argv[2];
     *port = parse_port(argv[4]);
-    if (*port == 1 -)
+    if (*port == -1)
     {
         printf("Invalid port\n");
         return 0; // for failed

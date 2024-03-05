@@ -17,7 +17,7 @@
 int main(int argc, char *argv[])
 {
     // Checking if the command is right
-    if (argc != 3 || strcmp(argv[i], "-p") != 0)
+    if (argc != 3 || strcmp(argv[1], "-p") != 0)
     {
         printf("usage: %s -p <port>\n", argv[0]);
     }
