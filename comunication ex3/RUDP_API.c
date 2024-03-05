@@ -69,7 +69,7 @@ int rudp_connect(int socket, const char *ip, int port)
     memset(&serveradd, 0, sizeof(serveradd));
 
     serveradd.sin_family = AF_INET;  // for ipv4 address
-    serveradd.sin_port = hton(port); // we're getting the port from outside
+    serveradd.sin_port = htons(port); // we're getting the port from outside
 
     int val = inet_pton(AF_INET, ip, &serveradd.sin_addr);
 
@@ -80,7 +80,7 @@ int rudp_connect(int socket, const char *ip, int port)
         return -1;
     }
 
-    if (connect(socket, (struct sockaddrr *)&serveradd, sizeof(serveradd)) == -1)
+    if (connect(socket, (struct sockaddr *)&serveradd, sizeof(serveradd)) == -1)
     { // if the connection will fail
         perror("Connetion failed");
         return -1;
@@ -137,7 +137,7 @@ int rudp_connect(int socket, const char *ip, int port)
         tries++;                                                  // Incrementing the total tries number
     }
 
-    prinf("Couldn't connect");
+    printf("Couldn't connect");
     free(rudp);
     free(recv);
     return 0; // return 0 for faild to connect
@@ -172,7 +172,7 @@ int rudp_get_con(int socket, int port)
     memset((char *)&clientadd, 0, sizeof(clientadd));
 
     RUDP *rudp = malloc(sizeof(RUDP));
-    memset(&rudp, 0, sizeof(RUDP));
+    memset(rudp, 0, sizeof(RUDP));
 
     int recv_length_bytes = recvfrom(socket, rudp, sizeof(RUDP) - 1, 0, (struct sockaddr *)&clientadd, &clientaddLen);
 
@@ -183,7 +183,7 @@ int rudp_get_con(int socket, int port)
         return -1; // Error sign
     }
 
-    if (connect(socket, (struct sockaddr *)&clientadd, &clientaddLen) == -1) // connection failed
+    if (connect(socket, (struct sockaddr *)&clientadd, clientaddLen) == -1) // connection failed
     {
         perror("connect function failed");
         free(rudp); // free after allocated memory
@@ -248,7 +248,7 @@ int rudp_send(int socket, const char *data, int length)
                 perror("Error sending with sendto");
                 return -1;
             }                                                              // wating to send again if we need. This is the part of the reliable UDP
-        } while (wait_for_acknowledgement(socket, rudp, clock(), 1) <= 0); // wating to seee if this is the write packet to send
+        } while (wait_for_acknowledgement(socket, i, clock(), 1) <= 0); // wating to seee if this is the write packet to send
     }
 
     // dealing with the last packet, it can signs us if we've finished whole the data
@@ -336,11 +336,11 @@ int rudp_receive(int socket, char **buffer, int *length)
         if (rudp->flags.DATA == 1)
         { // this is a data packet, so we want to take it's info
             *buffer = malloc(rudp->dataLength);
-            memcpy = (*buffer, rudp->data, rudp->dataLength);
+            memcpy(*buffer, rudp->data, rudp->dataLength);
             *length = rudp->dataLength; // the length of the data
             free(rudp);
-            seq_num++     // for the next packet tag
-            return 1;    // for success
+            seq_num++; // for the next packet tag
+            return 1;  // for success
         }
     }
 
@@ -369,7 +369,7 @@ int rudp_receive(int socket, char **buffer, int *length)
             recvfrom(socket, rudp, sizeof(RUDP) - 1, 0, NULL, 0);
             if (rudp->flags.FIN == 1)
             {
-                if (send_acknowledgement(socketm rudp) == -1)
+                if (send_acknowledgement(socket, rudp) == -1)
                 { // failed sneding ack
                     free(rudp);
                     return -1; // for error
@@ -398,7 +398,7 @@ int rudp_close(int socket)
 
     do
     {
-        int res_send = sendto(socket, rudp, sizeof(RUDP), 0, NULL, 0);
+        int res_send = sendto(socket, close_socket, sizeof(RUDP), 0, NULL, 0);
         if (res_send == -1)
         {
             perror("Fialed sendto when closing");
@@ -407,7 +407,7 @@ int rudp_close(int socket)
         }
     } while (wait_for_acknowledgement(socket, -1, clock(), 1) <= 0);
     close(socket);
-    free(rudp);
+    free(close_socket);
     return 1; // succeeded to close the socket and freeing our rudp struct
 }
 
@@ -463,20 +463,20 @@ int wait_for_acknowledgement(int socket, int sequal_num, clock_t s, clock_t t)
 
 int send_acknowledgement(int socket, RUDP *rudp)
 {
-    RUDP rudp_ack = malloc(sizeof(RUDP));
+    RUDP *rudp_ack = malloc(sizeof(RUDP));
     memset(rudp_ack, 0, sizeof(RUDP));
-    rudp_ack.flags.ACK = 1;
+    rudp_ack->flags.ACK = 1;
 
-    if (rudp.flags.FIN == 1)
+    if (rudp->flags.FIN == 1)
     { // means finished to send the data
-        rudp_ack.flags.FIN = 1;
+        rudp_ack->flags.FIN = 1;
     }
     if (rudp->flags.DATA == 1)
     {
-        rudp_ack.flags.DATA = 1;
+        rudp_ack->flags.DATA = 1;
     }
-    rudp_ack.sequalNum = rudp->sequalNum;
-    rudp_ack.checksum = checksum(rudp_ack);
+    rudp_ack->sequalNum = rudp->sequalNum;
+    rudp_ack->checksum = checksum(rudp_ack);
 
     int res_send = sendto(socket, rudp_ack, sizeof(RUDP), 0, NULL, 0);
     if (res_send == -1)
