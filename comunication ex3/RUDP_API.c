@@ -361,7 +361,7 @@ int rudp_receive(int socket, char **buffer, int *length)
         // means it's still open
         rudp = malloc(sizeof(RUDP));
         time_t finish_time = time(NULL);
-        printf("Waiting for closure");
+        printf("Waiting for closure\n");
 
         while ((double)(time(NULL) - finish_time) < 1)
         {

@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 
     printf("Sender connected and data is received to a file");
 
-    fprintf(data_file, "\n\n --------------- Stats ----------\n");
+    fprintf(data_file, "\n\n --------------- Stats -------------\n");
     double avgTime = 0;
     double avgSpeed = 0;
     clock_t start, finish;
@@ -114,12 +114,12 @@ int main(int argc, char *argv[])
         }
     } while (val >= 0);
 
-    printf("closing connection1\n");
+    printf("closing connection!\n");
 
     // adding to our data file more stats
     fprintf(data_file, "\n");
-    fprintf(data_file, "Average time: %f s'\n", avgTime / (run - 1));
-    fprintf(data_file, "Average time: %f s'\n", avgSpeed / (run - 1));
+    fprintf(data_file, "Average time: %f sec'\n", avgTime / (run - 1));
+    fprintf(data_file, "Average time: %f sec'\n", avgSpeed / (run - 1));
 
     fprintf(data_file, "\n\n----------------------------------\n"); // for ending like in the exmple
 
