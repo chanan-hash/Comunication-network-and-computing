@@ -13,7 +13,7 @@
 // define more functions
 int checksum(RUDP *rudp); // to check if the whole packet came
 int wait_for_acknowledgement(int socket, int sequal_num, clock_t s, clock_t t);
-int send_acknowledgement(int socket, RUDP *prudp);
+int send_acknowledgement(int socket, RUDP *rudp);
 int set_time(int socket, int time);
 
 int seq_num = 0;
@@ -195,7 +195,7 @@ int rudp_get_con(int socket, int port)
         int send_res = sendto(socket, reply, sizeof(RUDP), 0, NULL, 0);
 
         if (send_res == -1) // means sending failed
-        { 
+        {
             perror("sendto func' failed");
             free(rudp);
             free(reply);
@@ -205,7 +205,7 @@ int rudp_get_con(int socket, int port)
         set_time(socket, 1 * 10);
         free(rudp);
         free(reply);
-        return 1; // Succeeded to get the conncetion of the client 
+        return 1; // Succeeded to get the conncetion of the client
     }
     return 0; // for unsuccessing
 }
@@ -213,16 +213,69 @@ int rudp_get_con(int socket, int port)
 /**************************************/
 
 // To send data we need the socket, a data to sent, length of the data, and struct of the address
-int rudp_send(int socket, const void *data, size_t length, struct sockaddr_in *addr)
+int rudp_send(int socket, const char *data, int length)
 {
-    int bytes_sent = sendto(socket, data, length, 0, (struct sockaddr *)addr, sizeof(struct sockaddr_in));
-    if (bytes_sent <= 0)
+    // calculating the number of packets and last packet size
+    int number_of_packets = length / MAX_SIZE;
+    int last_one_size = length % MAX_SIZE;
+
+    RUDP *rudp = malloc(sizeof(RUDP));
+    for (int i = 0; i < number_of_packets; i++)
     {
-        perror("sendto(2)");
-        return -1;
+        memset(rudp, 0, sizeof(RUDP));
+        rudp->sequalNum = i;  // according to which packet are we now
+        rudp->flags.DATA = 1; // Sending data
+        if (i == number_of_packets - 1 && last_one_size == 0)
+        {
+            rudp->flags.FIN = 1; // means  we've finished sending the whole data
+        }
+        // copying into the rudp struct the data,, according to the place in the memory (data + i * MAX_SIZE) --> data[i]
+        memcpy(rudp->data, data + i * MAX_SIZE, MAX_SIZE); /* Copy N bytes of SRC to DEST.  */
+        rudp->dataLength = MAX_SIZE;
+        rudp->checksum = checksum(rudp);
+
+        do
+        { // sending the message
+            int send_res = sendto(socket, rudp, sizeof(RUDP), 0, NULL, 0);
+            if (send_res == -1)
+            {
+                perror("Error sending with sendto");
+                return -1;
+            }                                                              // wating to send again if we need. This is the part of the reliable UDP
+        } while (wait_for_acknowledgement(socket, rudp, clock(), 1) <= 0); // wating to seee if this is the write packet to send
     }
-    return bytes_sent;
+
+    // dealing with the last packet, it can signs us if we've finished whole the data
+    if (last_one_size > 0)
+    {
+        memset(rudp, 0, sizeof(RUDP));
+        rudp->sequalNum = number_of_packets; // last packet
+        rudp->flags.DATA = 1;                // Still sending data
+        rudp->flags.FIN = 1;                 // finishing sending the whole data
+
+        memcpy(rudp->data, data + number_of_packets * MAX_SIZE, last_one_size); // copying the lats packet data to our struct,
+                                                                                // allocating only it's amount, don't need the whole MAX_SIZE, and accessing it by the pointer
+
+        rudp->dataLength = last_one_size;
+        rudp->checksum = checksum(rudp);
+
+        // Trying to send it again if needed
+        do
+        {
+            int send_last = sendto(socket, rudp, sizeof(RUDP), 0, NULL, 0);
+            if (send_last == -1)
+            {
+                perror("Failed sendto the last packet");
+                free(rudp);
+                return -1;
+            }
+        } while (wait_for_acknowledgement(socket, number_of_packets, clock(), 1) <= 0);
+        free(rudp);
+    }
+    return 1; // for success
 }
+
+/**************************************************/
 
 int rudp_receive(int socket, void *buffer, size_t buffer_size, struct sockaddr_in *recv_addr)
 {
@@ -239,7 +292,37 @@ int rudp_receive(int socket, void *buffer, size_t buffer_size, struct sockaddr_i
 
 int rudp_close(int socket)
 {
+    RUDP *close_socket = malloc(sizeof(RUDP));
+    memset(close_socket, 0, sizeof(RUDP));
+    close_socket->flags.FIN = 1; // Finished so closing the connection
+    close_socket->sequalNum = -1;
+    close_socket->checksum = checksum(close_socket);
+
+    do
+    {
+        int res_send = sendto(socket, rudp, sizeof(RUDP), 0, NULL, 0);
+        if (res_send == -1)
+        {
+            perror("Fialed sendto when closing");
+            free(close_socket);
+            return -1; // for error
+        }
+    } while (wait_for_acknowledgement(socket, -1, clock(), 1) <= 0);
     close(socket);
+    free(rudp);
+    return 1; // succeeded to close the socket and freeing our rudp struct
+}
+
+/*************************************************/
+
+int checksum(RUDP *rudp)
+{
+    int sum = 0;
+    for (int i = 0; i < 10 && i < MAX_SIZE; i++)
+    {
+        sum += rudp->data[i];
+    }
+    return sum;
 }
 
 // -1 for errror, 1 for success
@@ -257,4 +340,54 @@ int set_time(int socket, int time)
         return -1;
     }
     return 1;
+}
+
+int wait_for_acknowledgement(int socket, int sequal_num, clock_t s, clock_t t)
+{
+    RUDP *reply = malloc(sizeof(RUDP));
+    while ((double)(clock() - s) / CLOCKS_PER_SEC < 1)
+    {
+        int length_recv = recvfrom(socket, reply, sizeof(RUDP) - 1, 0, NULL, 0);
+        if (length_recv == -1)
+        {
+            free(reply);
+            return -1; // for errror
+        }
+        if (reply->sequalNum == sequal_num && reply->flags.ACK == 1)
+        { // meaning this is the packet we're wating for
+            free(reply);
+            return 1;
+        }
+    }
+    free(reply);
+    return 0; // for unsuccess
+}
+
+int send_acknowledgement(int socket, RUDP *rudp)
+{
+    RUDP rudp_ack = malloc(sizeof(RUDP));
+    memset(rudp_ack, 0, sizeof(RUDP));
+    rudp_ack.flags.ACK = 1;
+
+    if (rudp.flags.FIN == 1)
+    { // means finished to send the data
+        rudp_ack.flags.FIN = 1;
+    }
+    if (rudp->flags.DATA == 1)
+    {
+        rudp_ack.flags.DATA = 1;
+    }
+    rudp_ack.sequalNum = rudp->sequalNum;
+    rudp_ack.checksum = checksum(rudp_ack);
+
+    int res_send = sendto(socket, rudp_ack, sizeof(RUDP), 0, NULL, 0);
+    if (res_send == -1)
+    {
+        perror("Failed sendto the acknowledgement");
+        free(rudp_ack);
+        return -1; // for error
+    }
+
+    free(rudp_ack); // succeeded sendinf the acknowledgement and can free the memory and return 1 for success
+    return 1; // for success
 }
