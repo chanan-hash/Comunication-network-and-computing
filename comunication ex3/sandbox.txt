@@ -33,3 +33,32 @@ int rudp_disconnect(RUDP_Socket *sockfd);
 int rudp_close(RUDP_Socket *sockfd);
 
 */
+
+
+// struct Flags  {
+//     unsigned int SYN : 1; // Synchronize flag to know if someone want to
+//     establish connection unsigned int ACK : 1; // Acknowledge this for ensure
+//     that we've got the whole data unsigned int DATA : 1; // To know if the
+//     packet is carring a data payload unsigned int FIN : 1; // To know if
+//     we've finished to send everything and can finish the connection
+// };
+
+
+// Adding the print function
+// void print_whole(RUDP *rudp) {
+//   // Printing the flags data
+//   printf("RUDP packet:\n");
+//   printf("\tThe flags:");
+//   printf("\t\t SYN: %u\n", rudp->flags.isSynchronized);
+//   printf("\t\t ACK: %u\n", rudp->flags.acknowledgeFlag);
+//   printf("\t\t DATA: %u\n", rudp->flags.isDataPacket);
+//   printf("\t\t FIN: %u\n", rudp->flags.finishFlag);
+
+//   // Printing other data of the socket
+//   printf("\tSequal number: %d\n", rudp->sequalNum);
+//   printf("\tChecksum: %d\n", rudp->checksum);
+//   printf("\t Length: %d\n", rudp->dataLength);
+
+//   printf("\n");
+// }
+
