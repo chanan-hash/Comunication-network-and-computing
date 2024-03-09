@@ -44,7 +44,7 @@ int rudp_get_con(int socket, int port);
 
 struct Flags {
   bool isSynchronized;  // Synchronize flag to know if someone want to establish
-                        // connection
+                        // // connection
 
   bool finishFlag;  // To know if we've finished to send everything and can
                     // finish the connection

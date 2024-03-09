@@ -44,6 +44,18 @@ int rudp_close(RUDP_Socket *sockfd);
 // };
 
 
+// struct Flags {
+//   unsigned int isSynchronized : 1;   // Synchronize flag to know if someone want
+//                                      // to establish connection
+//   unsigned int acknowledgeFlag : 1;  // Acknowledge this for ensure that we've
+//                                      // got the whole data
+//   unsigned int isDataPacket : 1;  // To know if the packet is carring a data payload
+//   unsigned int finishFlag : 1;  // To know if we've finished to send everything
+//                                 // and can finish the connection
+// };
+
+
+
 // Adding the print function
 // void print_whole(RUDP *rudp) {
 //   // Printing the flags data

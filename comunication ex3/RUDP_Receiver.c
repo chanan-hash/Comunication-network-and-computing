@@ -98,8 +98,7 @@ int main(int argc, char *argv[]) {
       strcat(total_size, recv_data); /* Append SRC onto DEST.  */
     }
 
-    else  // (val == 5)
-    {
+    else if (receive_state == 5) {
       strcat(total_size, recv_data);
       printf("received total: %zu\n", sizeof(total_size));
 
@@ -124,7 +123,7 @@ int main(int argc, char *argv[]) {
   // adding to our data file more stats
   fprintf(data_file, "\n");
   fprintf(data_file, "Average time: %f sec'\n", avgTime / (run - 1));
-  fprintf(data_file, "Average time: %f sec'\n", avgSpeed / (run - 1));
+  fprintf(data_file, "Average speed: %f MB/sec'\n", avgSpeed / (run - 1));
 
   fprintf(data_file,
           "\n\n----------------------------------\n");  // for ending like in
